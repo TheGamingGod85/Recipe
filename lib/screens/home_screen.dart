@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/recipe.dart';
 import '../services/api_service.dart';
+import '../widgets/loading_widget.dart';
 import '../widgets/search_widget.dart';
 import 'recipe_detail_screen.dart';
-import '../widgets/loading_widget.dart';
-
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -14,52 +14,88 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<String> cuisines = ['Italian', 'Indian', 'Chinese', 'Mexican'];
-  String selectedCuisine = 'Italian';
-  late List<Recipe> _allRecipes; // To store all recipes
+  List<String> cuisines = []; // List to hold cuisines dynamically fetched
+  String selectedCuisine = 'Liked'; // Default to 'Liked'
+  late List<Recipe> _allRecipes;
   List<Recipe> _filteredRecipes = [];
-  bool isLoading = true; // Loading state for all recipes
+  bool isLoading = true;
+  List<String> _likedRecipeIds = [];
 
   @override
   void initState() {
     super.initState();
-    _loadRecipesForCuisine(selectedCuisine); // Load recipes for the initial cuisine
+    _loadLikedRecipes(); // Load liked recipe IDs
+    _loadCuisines(); // Load cuisines from API
+  }
+
+  // Load liked recipes from SharedPreferences
+  Future<void> _loadLikedRecipes() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _likedRecipeIds = prefs.getStringList('likedRecipes') ?? [];
+    });
+  }
+
+  // Save liked recipes to SharedPreferences
+  Future<void> _saveLikedRecipes() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('likedRecipes', _likedRecipeIds);
+  }
+
+  // Fetch the list of available cuisines from the API
+  Future<void> _loadCuisines() async {
+    try {
+      List<String> fetchedCuisines = await ApiService.fetchCuisines();
+      setState(() {
+        cuisines = ['Liked'] + fetchedCuisines; // Always keep "Liked" at index 0
+      });
+      _loadRecipesForCuisine(selectedCuisine); // Load recipes for the initial selected cuisine
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   // Fetch recipes for the selected cuisine
   Future<void> _loadRecipesForCuisine(String cuisine) async {
     setState(() {
-      isLoading = true; // Start loading
+      isLoading = true;
     });
 
     try {
-      List<Recipe> recipes = await ApiService.fetchRecipes(cuisine);
+      List<Recipe> recipes;
+      if (cuisine == 'Liked') {
+        // Show liked recipes based on stored IDs
+        recipes = await ApiService.fetchRecipes('Italian'); // Fetch any cuisine to filter liked recipes
+        recipes = recipes.where((recipe) => _likedRecipeIds.contains(recipe.id)).toList();
+      } else {
+        recipes = await ApiService.fetchRecipes(cuisine); // Fetch by cuisine
+      }
+
       setState(() {
-        _allRecipes = recipes; // Store all recipes for search functionality
-        _filteredRecipes = recipes; // Filter recipes based on selected cuisine
+        _allRecipes = recipes;
+        _filteredRecipes = recipes;
         isLoading = false;
       });
     } catch (e) {
       setState(() {
         isLoading = false;
       });
-      // Handle error here (e.g., show a message)
     }
   }
 
-  // Filter recipes based on the search query
-  void _filterRecipes(String query) {
+  // Toggle the liked status of a recipe
+  void _toggleLiked(Recipe recipe) {
     setState(() {
-      if (query.isEmpty) {
-        _filteredRecipes = _allRecipes; // Reset to all recipes if no query
+      if (_likedRecipeIds.contains(recipe.id)) {
+        _likedRecipeIds.remove(recipe.id); // Unliked
       } else {
-        _filteredRecipes = _allRecipes
-            .where((recipe) => recipe.title
-                .toLowerCase()
-                .contains(query.toLowerCase()))
-            .toList();
+        _likedRecipeIds.add(recipe.id); // Liked
       }
     });
+
+    _saveLikedRecipes(); // Save the updated liked recipe IDs
   }
 
   @override
@@ -81,26 +117,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          // Search Button
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: IconButton(
-              icon: Icon(Icons.search),
-              onPressed: () {
-                // Open the SearchWidget
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SearchWidget(),
-                  ),
-                );
-              },
-            ),
+          IconButton(
+            icon: Icon(Icons.search),
+            onPressed: () {
+              // Open the SearchWidget
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SearchWidget(),
+                ),
+              );
+            },
           ),
         ],
       ),
       body: isLoading
-          ? LoadingWidget() // Show loading screen while data is being fetched
+          ? LoadingWidget() // Show loading screen
           : Column(
               children: [
                 Padding(
@@ -145,54 +177,68 @@ class _HomeScreenState extends State<HomeScreen> {
                           autoPlay: true,
                           enlargeCenterPage: true,
                         ),
-                        items: _filteredRecipes
-                            .take(5)
-                            .map(
-                              (recipe) => GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          RecipeDetailScreen(recipe: recipe),
+                        items: _filteredRecipes.take(5).map(
+                          (recipe) {
+                            bool isLiked = _likedRecipeIds.contains(recipe.id);
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        RecipeDetailScreen(recipe: recipe),
+                                  ),
+                                );
+                              },
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(15),
+                                    child: Image.network(
+                                      recipe.image,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
                                     ),
-                                  );
-                                },
-                                child: Stack(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(15),
-                                      child: Image.network(
-                                        recipe.image,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                      ),
-                                    ),
-                                    Positioned(
-                                      bottom: 10,
-                                      left: 10,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 5),
-                                        color: Colors.black.withOpacity(0.6),
-                                        child: Text(
-                                          recipe.title,
-                                          style: GoogleFonts.poppins(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                  ),
+                                  Positioned(
+                                    bottom: 10,
+                                    left: 10,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 5),
+                                      color: Colors.black.withOpacity(0.6),
+                                      child: Text(
+                                        recipe.title,
+                                        style: GoogleFonts.poppins(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  Positioned(
+                                    top: 10,
+                                    right: 10,
+                                    child: IconButton(
+                                      icon: Icon(
+                                        isLiked
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: isLiked ? Colors.red : null,
+                                      ),
+                                      onPressed: () => _toggleLiked(recipe),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            )
-                            .toList(),
+                            );
+                          },
+                        ).toList(),
                       ),
                       const SizedBox(height: 10),
                       ..._filteredRecipes.map((recipe) {
+                        bool isLiked = _likedRecipeIds.contains(recipe.id);
                         return Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12.0, vertical: 8.0),
@@ -216,6 +262,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w600,
                                 ),
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(
+                                  isLiked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: isLiked ? Colors.red : null,
+                                ),
+                                onPressed: () => _toggleLiked(recipe),
                               ),
                               onTap: () {
                                 Navigator.push(

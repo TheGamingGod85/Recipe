@@ -6,6 +6,19 @@ import '../models/recipe_detail.dart';
 class ApiService {
   static const String baseUrl = 'https://www.themealdb.com/api/json/v1/1';
 
+  // Fetch the list of all available cuisines
+  static Future<List<String>> fetchCuisines() async {
+    final response = await http.get(Uri.parse('$baseUrl/list.php?a=list'));
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body)['meals'];
+      return data.map((cuisine) => cuisine['strArea'] as String).toList();
+    } else {
+      throw Exception('Failed to load cuisines');
+    }
+  }
+
+  // Fetch recipes for a specific cuisine
   static Future<List<Recipe>> fetchRecipes(String cuisine) async {
     final response = await http.get(Uri.parse('$baseUrl/filter.php?a=$cuisine'));
 
@@ -17,6 +30,7 @@ class ApiService {
     }
   }
 
+  // Fetch details of a specific recipe
   static Future<RecipeDetail> fetchRecipeDetails(String id) async {
     final response = await http.get(Uri.parse('$baseUrl/lookup.php?i=$id'));
 
