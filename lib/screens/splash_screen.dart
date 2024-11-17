@@ -18,7 +18,15 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(Duration(seconds: 3)); // Display splash for 3 seconds
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => HomeScreen()),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return FadeTransition(
+            opacity: animation,
+            child: HomeScreen(), // You can use the HomeScreen here
+          );
+        },
+        transitionDuration: Duration(seconds: 1),
+      ),
     );
   }
 
@@ -47,10 +55,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   Icons.restaurant_menu,
                   size: 100,
                   color: Colors.white,
-                )
-                    .animate()
-                    .fadeIn(duration: 1200.ms)
-                    .scale(duration: 1200.ms, curve: Curves.elasticOut),
+                ).animate().fadeIn(duration: 1200.ms).scale(duration: 1200.ms, curve: Curves.elasticOut),
                 SizedBox(height: 20),
                 // App Name Animation
                 Text(

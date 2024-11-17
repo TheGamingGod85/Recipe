@@ -88,15 +88,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         ),
                       ),
                     ),
-                    // Positioned(
-                    //   top: 10,
-                    //   left: 10,
-                    //   child: IconButton(
-                    //     icon: Icon(Icons.arrow_back, color: Colors.white),
-                    //     onPressed: () => Navigator.pop(context),
-                    //     iconSize: 30,
-                    //   ),
-                    // ),
                   ],
                 ),
                 Padding(

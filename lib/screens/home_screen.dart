@@ -120,11 +120,16 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: Icon(Icons.search),
             onPressed: () {
-              // Open the SearchWidget
+              // Open the SearchWidget with fade transition
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => SearchWidget(),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SearchWidget(),
+                    );
+                  },
                 ),
               );
             },
@@ -182,11 +187,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             bool isLiked = _likedRecipeIds.contains(recipe.id);
                             return GestureDetector(
                               onTap: () {
+                                // Fade transition to RecipeDetailScreen
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        RecipeDetailScreen(recipe: recipe),
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) {
+                                      return FadeTransition(
+                                        opacity: animation,
+                                        child: RecipeDetailScreen(recipe: recipe),
+                                      );
+                                    },
                                   ),
                                 );
                               },
@@ -273,11 +283,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 onPressed: () => _toggleLiked(recipe),
                               ),
                               onTap: () {
+                                // Fade transition to RecipeDetailScreen
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        RecipeDetailScreen(recipe: recipe),
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) {
+                                      return FadeTransition(
+                                        opacity: animation,
+                                        child: RecipeDetailScreen(recipe: recipe),
+                                      );
+                                    },
                                   ),
                                 );
                               },
